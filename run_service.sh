@@ -14,8 +14,5 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-# 가상환경 활성화
-source venv/bin/activate
-
 # Python 스크립트 실행
 python3 "$(pwd)/keycult_monitor.py" "$1" "$2" 

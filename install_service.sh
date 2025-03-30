@@ -14,6 +14,7 @@ check_environment
 mkdir -p "$LOG_DIR"
 
 # 실행 권한 부여
+chmod +X "$SCRIPT_DIR"
 chmod +x "$SCRIPT_DIR/run_monitor.sh"
 chmod +x "$SCRIPT_DIR/uninstall_service.sh"
 chmod +x "$SCRIPT_DIR/run_service.sh"
@@ -29,9 +30,10 @@ cat > "$PLIST_PATH" << EOL
     <string>com.keycult.monitor</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>-c</string>
-        <string>cd "$SCRIPT_DIR" && PYTHONIOENCODING=utf-8 LANG=ko_KR.UTF-8 LC_ALL=ko_KR.UTF-8 "$VENV_DIR/bin/python3" "$SCRIPT_DIR/keycult_monitor.py" $DEFAULT_CHECK_INTERVAL $DEFAULT_HEARTBEAT_INTERVAL</string>
+        <string>$VENV_DIR/bin/python3</string>
+        <string>$SCRIPT_DIR/keycult_monitor.py</string>
+        <string>$DEFAULT_CHECK_INTERVAL</string>
+        <string>$DEFAULT_HEARTBEAT_INTERVAL</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -41,9 +43,27 @@ cat > "$PLIST_PATH" << EOL
     <string>$LOG_DIR/keycult_monitor_output.log</string>
     <key>WorkingDirectory</key>
     <string>$SCRIPT_DIR</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PYTHONIOENCODING</key>
+        <string>utf-8</string>
+        <key>LANG</key>
+        <string>ko_KR.UTF-8</string>
+        <key>LC_ALL</key>
+        <string>ko_KR.UTF-8</string>
+    </dict>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
 </dict>
 </plist>
 EOL
+
+# plist 파일 권한 설정
+chmod 644 "$PLIST_PATH"
 
 # 기존 서비스 제거
 if check_service_status; then
