@@ -14,6 +14,7 @@ from discord_webhook import DiscordWebhook, DiscordEmbed
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import asyncio
+import sys
 
 # 로깅 설정
 def setup_logger():
@@ -37,6 +38,7 @@ def setup_logger():
     # 콘솔 핸들러 설정
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
+    console_handler.setStream(open(os.devnull, 'w', encoding='utf-8'))  # 기본 출력 스트림 대신 파일 스트림 사용
     logger.addHandler(console_handler)
     
     return logger
@@ -212,14 +214,35 @@ def main():
     
     # 시간 간격 입력 받기
     try:
-        check_interval = int(input("재고 확인 간격(분): "))
-        heartbeat_interval = int(input("생존 알림 간격(분): "))
+        if len(sys.argv) == 3:
+            # 명령줄 인자에서 시간 간격 받기
+            check_interval = int(sys.argv[1])
+            heartbeat_interval = int(sys.argv[2])
+        else:
+            # 사용자 입력 받기
+            check_interval = int(input("재고 확인 간격(분): "))
+            heartbeat_interval = int(input("생존 알림 간격(분): "))
         
         if check_interval <= 0 or heartbeat_interval <= 0:
             raise ValueError("시간 간격은 1분 이상이어야 합니다.")
             
         logger.info(f"재고 확인 간격: {check_interval}분")
         logger.info(f"생존 알림 간격: {heartbeat_interval}분")
+        
+        # 초기 알림 발송
+        current_time = datetime.now()
+        initial_message = f"Keycult 모니터링 서비스가 시작되었습니다.\n재고 확인 간격: {check_interval}분\n생존 알림 간격: {heartbeat_interval}분\n시작 시간: {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        if USE_EMAIL:
+            send_email_notification("Keycult 모니터링 서비스 시작 알림", initial_message)
+        
+        if USE_SLACK:
+            send_slack_notification(initial_message)
+        
+        if USE_DISCORD:
+            asyncio.run(send_discord_notification(initial_message))
+        
+        logger.info("초기 알림 발송 완료")
         
         # 재고 확인 스케줄링
         schedule.every(check_interval).minutes.do(check_stock)

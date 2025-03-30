@@ -13,5 +13,17 @@ mkdir -p logs
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="logs/keycult_monitor_${TIMESTAMP}.log"
 
-# 프로그램 실행 및 로그 저장
-python3 keycult_monitor.py 2>&1 | tee "$LOG_FILE" 
+# 환경 변수 설정
+export PYTHONIOENCODING=utf-8
+export LANG=ko_KR.UTF-8
+export LC_ALL=ko_KR.UTF-8
+
+# 명령줄 인자에서 시간 간격을 받아서 Python 스크립트에 전달
+if [ $# -eq 2 ]; then
+    CHECK_INTERVAL=$1
+    HEARTBEAT_INTERVAL=$2
+    python3 keycult_monitor.py $CHECK_INTERVAL $HEARTBEAT_INTERVAL 2>&1 | tee "$LOG_FILE"
+else
+    # 인자가 없으면 사용자 입력 받기
+    python3 keycult_monitor.py 2>&1 | tee "$LOG_FILE"
+fi 

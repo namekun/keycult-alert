@@ -42,6 +42,7 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 
 ## 실행 방법
 
+### 일반 실행
 ```bash
 ./run_monitor.sh
 ```
@@ -49,6 +50,39 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 실행 시 다음 정보를 입력하라는 메시지가 표시됩니다:
 1. 재고 확인 간격 (분 단위)
 2. 생존 알림 간격 (분 단위)
+
+### 직접 시간 간격 지정 실행
+```bash
+./run_monitor.sh [재고확인간격] [생존알림간격]
+```
+예시:
+```bash
+./run_monitor.sh 10 15  # 재고 확인 10분, 생존 알림 15분
+```
+
+### 서비스로 실행
+```bash
+chmod +x install_service.sh
+./install_service.sh
+```
+
+서비스로 실행하면 컴퓨터를 시작할 때마다 자동으로 실행됩니다.
+- 기본 재고 확인 간격: 5분
+- 기본 생존 알림 간격: 5분
+- 시간 간격을 변경하려면 `install_service.sh` 파일의 `DEFAULT_CHECK_INTERVAL`과 `DEFAULT_HEARTBEAT_INTERVAL` 값을 수정하세요.
+
+## 서비스 제거 방법
+
+프로그램을 완전히 종료하고 제거하려면 다음 명령어를 실행하세요:
+```bash
+chmod +x uninstall_service.sh
+./uninstall_service.sh
+```
+
+이 명령어는 다음 작업을 수행합니다:
+1. 실행 중인 모니터링 프로세스를 찾아 종료
+2. 서비스를 언로드
+3. 서비스 설정 파일 제거
 
 ## 로그
 
@@ -59,7 +93,7 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 
 - Gmail을 사용하는 경우, 앱 비밀번호를 생성하여 사용해야 합니다.
 - 너무 짧은 간격으로 설정하면 웹사이트에 과도한 부하를 줄 수 있습니다.
-- 프로그램을 종료하려면 Ctrl+C를 누르세요.
+- 프로그램을 종료하려면 Ctrl+C를 누르거나 서비스 제거 스크립트를 실행하세요.
 
 ## 기능
 
