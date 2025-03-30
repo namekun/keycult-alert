@@ -1,24 +1,26 @@
 #!/bin/bash
 
-# 스크립트의 디렉토리로 이동
-cd "$(dirname "$0")"
+# 에러 처리 설정
+set -e
+trap 'handle_error ${LINENO}' ERR
 
-# 실행 권한 부여
-chmod +x run_monitor.sh
-chmod +x uninstall_service.sh
+# 설정 파일 로드
+source "$(dirname "$0")/config.sh"
 
-# 기본 시간 간격 설정 (분 단위)
-DEFAULT_CHECK_INTERVAL=1
-DEFAULT_HEARTBEAT_INTERVAL=60
-
-echo "실행 권한이 부여되었습니다."
-echo "이제 ./run_monitor.sh를 실행하여 프로그램을 시작할 수 있습니다."
+# 환경 확인
+check_environment
 
 # 로그 디렉토리 생성
-mkdir -p logs
+mkdir -p "$LOG_DIR"
+
+# 실행 권한 부여
+chmod +x "$SCRIPT_DIR/run_monitor.sh"
+chmod +x "$SCRIPT_DIR/uninstall_service.sh"
+chmod +x "$SCRIPT_DIR/run_service.sh"
 
 # 서비스 파일 생성
-cat > ~/Library/LaunchAgents/com.keycult.monitor.plist << EOL
+log_info "서비스 설정 파일 생성 중..."
+cat > "$PLIST_PATH" << EOL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -27,27 +29,40 @@ cat > ~/Library/LaunchAgents/com.keycult.monitor.plist << EOL
     <string>com.keycult.monitor</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$(pwd)/run_monitor.sh</string>
-        <string>$DEFAULT_CHECK_INTERVAL</string>
-        <string>$DEFAULT_HEARTBEAT_INTERVAL</string>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd "$SCRIPT_DIR" && PYTHONIOENCODING=utf-8 LANG=ko_KR.UTF-8 LC_ALL=ko_KR.UTF-8 "$VENV_DIR/bin/python3" "$SCRIPT_DIR/keycult_monitor.py" $DEFAULT_CHECK_INTERVAL $DEFAULT_HEARTBEAT_INTERVAL</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardErrorPath</key>
-    <string>$(pwd)/logs/keycult_monitor_error.log</string>
+    <string>$LOG_DIR/keycult_monitor_error.log</string>
     <key>StandardOutPath</key>
-    <string>$(pwd)/logs/keycult_monitor_output.log</string>
+    <string>$LOG_DIR/keycult_monitor_output.log</string>
     <key>WorkingDirectory</key>
-    <string>$(pwd)</string>
+    <string>$SCRIPT_DIR</string>
 </dict>
 </plist>
 EOL
 
-# 서비스 로드
-launchctl load ~/Library/LaunchAgents/com.keycult.monitor.plist
+# 기존 서비스 제거
+if check_service_status; then
+    log_info "기존 서비스 제거 중..."
+    launchctl unload "$PLIST_PATH" 2>/dev/null || true
+fi
 
-echo "서비스가 설치되었습니다."
-echo "재고 확인 간격: $DEFAULT_CHECK_INTERVAL분"
-echo "생존 알림 간격: $DEFAULT_HEARTBEAT_INTERVAL분"
-echo "로그 파일은 $(pwd)/logs 디렉토리에서 확인할 수 있습니다."
-echo "서비스를 제거하려면 ./uninstall_service.sh를 실행하세요." 
+# 서비스 로드
+log_info "서비스 로드 중..."
+launchctl load "$PLIST_PATH"
+
+# 서비스 상태 확인
+if check_service_status; then
+    log_info "서비스가 성공적으로 설치되었습니다."
+    log_info "재고 확인 간격: $DEFAULT_CHECK_INTERVAL분"
+    log_info "생존 알림 간격: $DEFAULT_HEARTBEAT_INTERVAL분"
+    log_info "로그 파일: $LOG_DIR/keycult_monitor_*.log"
+    log_info "서비스 제거: ./uninstall_service.sh"
+else
+    log_error "서비스 설치 실패"
+    exit 1
+fi 
