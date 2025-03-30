@@ -1,16 +1,45 @@
 #!/bin/bash
 
-# LaunchAgent 디렉토리 생성
-mkdir -p ~/Library/LaunchAgents
+# 스크립트의 디렉토리로 이동
+cd "$(dirname "$0")"
 
-# LaunchAgent 파일 복사
-cp com.keycult.monitor.plist ~/Library/LaunchAgents/
+# 실행 권한 부여
+chmod +x run_monitor.sh
+chmod +x uninstall_service.sh
 
-# 권한 설정
-chmod 644 ~/Library/LaunchAgents/com.keycult.monitor.plist
+echo "실행 권한이 부여되었습니다."
+echo "이제 ./run_monitor.sh를 실행하여 프로그램을 시작할 수 있습니다."
 
-# LaunchAgent 로드
+# 로그 디렉토리 생성
+mkdir -p logs
+
+# 서비스 파일 생성
+cat > ~/Library/LaunchAgents/com.keycult.monitor.plist << EOL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.keycult.monitor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$(pwd)/run_monitor.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>$(pwd)/logs/keycult_monitor_error.log</string>
+    <key>StandardOutPath</key>
+    <string>$(pwd)/logs/keycult_monitor_output.log</string>
+    <key>WorkingDirectory</key>
+    <string>$(pwd)</string>
+</dict>
+</plist>
+EOL
+
+# 서비스 로드
 launchctl load ~/Library/LaunchAgents/com.keycult.monitor.plist
 
-echo "Keycult 모니터링 서비스가 설치되었습니다."
-echo "로그 파일: ~/Desktop/DEV/keycult/keycult_monitor.log" 
+echo "서비스가 설치되었습니다."
+echo "로그 파일은 $(pwd)/logs 디렉토리에서 확인할 수 있습니다."
+echo "서비스를 제거하려면 ./uninstall_service.sh를 실행하세요." 

@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from discord_webhook import DiscordWebhook
+from discord_webhook import DiscordWebhook, DiscordEmbed
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import asyncio
@@ -66,22 +66,39 @@ DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
 
 # 마지막 알림 시간 기록
 last_notification_time = datetime.now()
+last_stock_check_time = datetime.now()  # 마지막 재고 확인 시간 추가
 
 async def send_discord_notification(message):
     try:
-        webhook = DiscordWebhook(url=DISCORD_WEBHOOK_URL, content=message)
-        webhook.execute()
-        logger.info("Discord 알림 발송 성공!")
+        if not DISCORD_WEBHOOK_URL:
+            logger.error("Discord Webhook URL이 설정되지 않았습니다.")
+            return
+            
+        logger.info(f"Discord 알림 시도: {message}")
+        webhook = DiscordWebhook(url=DISCORD_WEBHOOK_URL)
+        
+        # 임베드 생성
+        embed = DiscordEmbed(
+            title="Keycult 재고 알림",
+            description=message,
+            color="03b2f8"  # 파란색
+        )
+        webhook.add_embed(embed)
+        
+        # 실행
+        response = webhook.execute()
+        logger.info(f"Discord 알림 발송 성공! 응답: {response}")
     except Exception as e:
         logger.error(f"Discord 발송 실패: {str(e)}")
+        logger.error(f"Discord Webhook URL: {DISCORD_WEBHOOK_URL[:10]}...")  # URL의 일부만 로깅
 
-def send_heartbeat():
+def send_heartbeat(interval_minutes):
     global last_notification_time
     current_time = datetime.now()
     
-    # 마지막 알림으로부터 5분이 지났는지 확인
-    if current_time - last_notification_time >= timedelta(minutes=5):
-        message = f"Keycult 모니터링 서비스가 살아있긴합니다? (마지막 재고 확인: {current_time.strftime('%Y-%m-%d %H:%M:%S')})"
+    # 마지막 알림으로부터 설정된 시간이 지났는지 확인
+    if current_time - last_notification_time >= timedelta(minutes=interval_minutes):
+        message = f"Keycult 모니터링 서비스가 정상 작동 중입니다. (마지막 재고 확인: {current_time.strftime('%Y-%m-%d %H:%M:%S')})"
         
         if USE_EMAIL:
             send_email_notification("Keycult 모니터링 서비스 생존 알림", message)
@@ -96,6 +113,7 @@ def send_heartbeat():
         logger.info("생존 알림 발송 완료")
 
 def check_stock():
+    global last_notification_time, last_stock_check_time
     url = "https://keycult.com/products/no-2-65-raw-1"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -110,10 +128,27 @@ def check_stock():
         target_option = "Stonewashed / Diagonal Unfinish"
         out_of_stock = target_option in response.text and "Out of stock" in response.text
         
+        current_time = datetime.now()
+        
+        # 하루 동안 재고가 없었던 경우 알림
+        if out_of_stock and (current_time - last_stock_check_time).days >= 1:
+            message = f"Keycult No. 2/65 Raw {target_option} 옵션이 하루 동안 재고가 없었습니다.\n마지막 재고 확인: {last_stock_check_time.strftime('%Y-%m-%d %H:%M:%S')}"
+            
+            if USE_EMAIL:
+                send_email_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
+            
+            if USE_SLACK:
+                send_slack_notification(message)
+            
+            if USE_DISCORD:
+                asyncio.run(send_discord_notification(message))
+            
+            logger.info(f"{target_option} 하루 동안 재고 없음 알림 발송 완료.")
+            last_stock_check_time = current_time
+        
         if not out_of_stock and target_option in response.text:
             message = f"Keycult No. 2/65 Raw {target_option} 옵션이 재고에 입고되었습니다!\n확인하러 가기: {url}"
             
-            # 설정된 알림 방식에 따라 알림 발송
             if USE_EMAIL:
                 send_email_notification("Keycult No. 2/65 Raw Stonewashed 재고 입고 알림", message)
             
@@ -124,8 +159,12 @@ def check_stock():
                 asyncio.run(send_discord_notification(message))
             
             logger.info(f"{target_option} 재고 입고 감지! 알림 발송 완료.")
+            last_stock_check_time = current_time  # 재고가 있을 때도 시간 업데이트
         else:
             logger.info(f"{target_option} 재고 없음")
+            
+        # 재고 확인 후 생존 알림 시간 업데이트
+        last_notification_time = current_time
             
     except Exception as e:
         logger.error(f"에러 발생: {str(e)}")
@@ -171,15 +210,33 @@ def main():
     logger.info("Keycult 재고 모니터링 시작...")
     logger.info(f"활성화된 알림: {'이메일' if USE_EMAIL else ''} {'Slack' if USE_SLACK else ''} {'Discord' if USE_DISCORD else ''}")
     
-    # 5분마다 재고 확인
-    schedule.every(5).minutes.do(check_stock)
-    
-    # 5분마다 생존 알림
-    schedule.every(5).minutes.do(send_heartbeat)
-    
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    # 시간 간격 입력 받기
+    try:
+        check_interval = int(input("재고 확인 간격(분): "))
+        heartbeat_interval = int(input("생존 알림 간격(분): "))
+        
+        if check_interval <= 0 or heartbeat_interval <= 0:
+            raise ValueError("시간 간격은 1분 이상이어야 합니다.")
+            
+        logger.info(f"재고 확인 간격: {check_interval}분")
+        logger.info(f"생존 알림 간격: {heartbeat_interval}분")
+        
+        # 재고 확인 스케줄링
+        schedule.every(check_interval).minutes.do(check_stock)
+        
+        # 생존 알림 스케줄링 (재고 확인과 동시에 실행되지 않도록 1분 후에 시작)
+        schedule.every(heartbeat_interval).minutes.at(":01").do(lambda: send_heartbeat(heartbeat_interval))
+        
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+            
+    except ValueError as e:
+        logger.error(f"입력 오류: {str(e)}")
+        return
+    except KeyboardInterrupt:
+        logger.info("프로그램을 종료합니다.")
+        return
 
 if __name__ == "__main__":
     main() 

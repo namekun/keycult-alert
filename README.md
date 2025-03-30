@@ -1,6 +1,14 @@
 # Keycult 재고 모니터링 프로그램
 
-이 프로그램은 Keycult 웹사이트의 No. 2/65 Raw 키보드 재고를 모니터링하고 재고가 입고되면 이메일, Slack, Discord로 알림을 보내는 프로그램입니다.
+Keycult 웹사이트의 특정 키보드 모델의 재고 상태를 모니터링하고, 재고가 입고되면 알림을 보내는 프로그램입니다.
+
+## 기능
+
+- Keycult No. 2/65 Raw (Stonewashed / Diagonal Unfinish) 모델의 재고 상태 모니터링
+- 재고 입고 시 이메일, Slack, Discord 알림 발송
+- 프로그램 생존 상태 확인을 위한 주기적 알림
+- 자세한 로그 기록
+- 사용자 설정 가능한 모니터링 간격
 
 ## 보안 주의사항
 
@@ -11,82 +19,47 @@
 
 ## 설치 방법
 
-1. 필요한 패키지 설치:
+1. 저장소를 클론합니다:
 ```bash
-pip install -r requirements.txt
+git clone [repository-url]
+cd keycult-monitor
 ```
 
-2. `.env` 파일 설정:
-- `EMAIL_ADDRESS`: Gmail 주소
-- `EMAIL_PASSWORD`: Gmail 앱 비밀번호 (Gmail 계정 설정에서 생성)
-- `RECEIVER_EMAIL`: 알림을 받을 이메일 주소
-- `SLACK_WEBHOOK_URL`: Slack Webhook URL
-- `DISCORD_WEBHOOK_URL`: Discord Webhook URL
+2. 설치 스크립트를 실행합니다:
+```bash
+chmod +x install.sh
+./install.sh
+```
 
-## Gmail 앱 비밀번호 생성 방법
-
-1. Google 계정 설정으로 이동
-2. 보안 > 2단계 인증 활성화
-3. 앱 비밀번호 생성
-4. 생성된 비밀번호를 `.env` 파일의 `EMAIL_PASSWORD`에 입력
-
-## Slack Webhook 설정 방법
-
-1. Slack 워크스페이스에서 새로운 앱 생성:
-   - [Slack API](https://api.slack.com/apps) 페이지로 이동
-   - "Create New App" 클릭
-   - "From scratch" 선택
-   - 앱 이름과 워크스페이스 선택
-
-2. Bot Token Scopes 설정:
-   - "OAuth & Permissions" 메뉴 선택
-   - "Scopes" 섹션에서 "Bot Token Scopes" 추가
-   - "chat:write" 권한 추가
-
-3. 워크스페이스에 앱 설치:
-   - "Install to Workspace" 클릭
-   - 권한 승인
-
-4. Webhook URL 복사:
-   - "OAuth & Permissions" 페이지에서 "Bot User OAuth Token" 복사
-   - 복사한 토큰을 `.env` 파일의 `SLACK_WEBHOOK_URL`에 입력
-
-5. 알림을 받을 채널 생성:
-   - Slack에서 "#keycult-stock" 채널 생성
-   - 생성한 채널에 앱 초대
-
-## Discord Webhook 설정 방법
-
-1. Discord 서버에서 Webhook 생성:
-   - 알림을 받을 채널 설정에서 "연결 통합" 선택
-   - "웹후크 생성" 클릭
-   - 웹후크 이름 설정 (예: "Keycult Stock")
-   - "웹후크 URL 복사" 클릭
-   - 복사한 URL을 `.env` 파일의 `DISCORD_WEBHOOK_URL`에 입력
+3. `.env` 파일을 생성하고 필요한 환경변수를 설정합니다:
+```env
+EMAIL_ADDRESS=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+RECEIVER_EMAIL=receiver@example.com
+SLACK_WEBHOOK_URL=your-slack-webhook-url
+DISCORD_WEBHOOK_URL=your-discord-webhook-url
+```
 
 ## 실행 방법
 
-### 일반 실행
 ```bash
-python keycult_monitor.py
+./run_monitor.sh
 ```
 
-### 백그라운드 서비스로 실행 (macOS)
+실행 시 다음 정보를 입력하라는 메시지가 표시됩니다:
+1. 재고 확인 간격 (분 단위)
+2. 생존 알림 간격 (분 단위)
 
-1. 서비스 설치:
-```bash
-./install_service.sh
-```
+## 로그
 
-2. 서비스 제거:
-```bash
-./uninstall_service.sh
-```
+- 프로그램 실행 중 발생하는 모든 로그는 `logs` 디렉토리에 저장됩니다.
+- 로그 파일은 날짜와 시간이 포함된 이름으로 생성됩니다.
 
-백그라운드 서비스로 실행 시:
-- 컴퓨터를 시작할 때마다 자동으로 실행됩니다.
-- 백그라운드에서 계속 실행됩니다.
-- 로그는 `~/Desktop/DEV/keycult/keycult_monitor.log` 파일에서 확인할 수 있습니다.
+## 주의사항
+
+- Gmail을 사용하는 경우, 앱 비밀번호를 생성하여 사용해야 합니다.
+- 너무 짧은 간격으로 설정하면 웹사이트에 과도한 부하를 줄 수 있습니다.
+- 프로그램을 종료하려면 Ctrl+C를 누르세요.
 
 ## 기능
 
