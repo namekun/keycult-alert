@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import schedule
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import smtplib
@@ -64,6 +64,9 @@ slack_client = WebClient(token=SLACK_WEBHOOK_URL) if USE_SLACK else None
 # Discord 설정
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
 
+# 마지막 알림 시간 기록
+last_notification_time = datetime.now()
+
 async def send_discord_notification(message):
     try:
         webhook = DiscordWebhook(url=DISCORD_WEBHOOK_URL, content=message)
@@ -71,6 +74,26 @@ async def send_discord_notification(message):
         logger.info("Discord 알림 발송 성공!")
     except Exception as e:
         logger.error(f"Discord 발송 실패: {str(e)}")
+
+def send_heartbeat():
+    global last_notification_time
+    current_time = datetime.now()
+    
+    # 마지막 알림으로부터 5분이 지났는지 확인
+    if current_time - last_notification_time >= timedelta(minutes=5):
+        message = f"Keycult 모니터링 서비스가 살아있긴합니다? (마지막 재고 확인: {current_time.strftime('%Y-%m-%d %H:%M:%S')})"
+        
+        if USE_EMAIL:
+            send_email_notification("Keycult 모니터링 서비스 생존 알림", message)
+        
+        if USE_SLACK:
+            send_slack_notification(message)
+        
+        if USE_DISCORD:
+            asyncio.run(send_discord_notification(message))
+        
+        last_notification_time = current_time
+        logger.info("생존 알림 발송 완료")
 
 def check_stock():
     url = "https://keycult.com/products/no-2-65-raw-1"
@@ -150,6 +173,9 @@ def main():
     
     # 5분마다 재고 확인
     schedule.every(5).minutes.do(check_stock)
+    
+    # 5분마다 생존 알림
+    schedule.every(5).minutes.do(send_heartbeat)
     
     while True:
         schedule.run_pending()
