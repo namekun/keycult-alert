@@ -15,6 +15,7 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import asyncio
 import sys
+import socket
 
 # 로깅 설정 함수
 def setup_logger():
@@ -154,8 +155,36 @@ def check_stock():
     notification_sent = False
     
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                hostname = url.split("//")[1].split("/")[0]
+                socket.gethostbyname(hostname)
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                break
+            except socket.gaierror as e:
+                logger.error(f"DNS resolution failed for {hostname}: {e}")
+                if attempt < max_retries:
+                    logger.info(f"Retrying DNS resolution ({attempt}/{max_retries})...")
+                    time.sleep(1)
+                    continue
+                else:
+                    logger.error("Max DNS resolution retries exceeded.")
+                    return
+            except Exception as e:
+                logger.error(f"HTTP request failed on attempt {attempt}/{max_retries}: {e}")
+                if attempt < max_retries:
+                    logger.info(f"Retrying HTTP request ({attempt}/{max_retries})...")
+                    time.sleep(1)
+                    continue
+                else:
+                    logger.error("Max HTTP request retries exceeded.")
+                    return
+        else:
+            return
+        # At this point, `response` is successful
+        
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # 재고 여부 판별
@@ -170,15 +199,20 @@ def check_stock():
                         f"Keycult No. 2/65 Raw {target_option} 옵션이 하루 동안 재고가 없었습니다.\n"
                         f"마지막 재고 확인: {last_stock_check_time.strftime('%Y-%m-%d %H:%M:%S')}"
                     )
-                    send_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
+                    for _ in range(10):
+                        send_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
                     last_stock_check_time = current_time
                     notification_sent = True
                 else:
                     logger.info(f"{target_option} 재고 없음 - 알림 전송 조건 미충족.")
             else:
                 # 재고 입고 알림 전송
-                message = f"Keycult No. 2/65 Raw {target_option} 옵션이 재고에 입고되었습니다!\n확인하러 가기: {url}"
-                send_notification("Keycult No. 2/65 Raw Stonewashed 재고 입고 알림", message)
+                message = (
+                    f"Keycult No. 2/65 Raw {target_option} 옵션이 재고에 입고되었습니다!\n"
+                    f"확인하러 가기: {url}"
+                )
+                for _ in range(10):
+                    send_notification("Keycult No. 2/65 Raw Stonewashed 재고 입고 알림", message)
                 last_stock_check_time = current_time
                 notification_sent = True
         else:
@@ -230,7 +264,7 @@ def main():
         
         # 스케줄러 등록
         schedule.every(check_interval).minutes.do(check_stock)
-        schedule.every(heartbeat_interval).minutes.at(":01").do(lambda: send_heartbeat(heartbeat_interval))
+        schedule.every(heartbeat_interval).minutes.do(send_heartbeat, heartbeat_interval)
         
         while True:
             schedule.run_pending()
