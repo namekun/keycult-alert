@@ -17,6 +17,10 @@ import asyncio
 import sys
 import socket
 
+# 로그 디렉토리 설정 및 생성
+LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
 # 로깅 설정 함수
 def setup_logger():
     logger = logging.getLogger('keycult_monitor')
@@ -28,7 +32,7 @@ def setup_logger():
     )
     
     file_handler = TimedRotatingFileHandler(
-        'keycult_monitor.log',
+        os.path.join(LOG_DIR, 'keycult_monitor.log'),
         when='midnight',
         interval=1,
         backupCount=7,

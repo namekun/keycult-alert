@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # 기본 설정
-DEFAULT_CHECK_INTERVAL=5
+DEFAULT_CHECK_INTERVAL=1
 DEFAULT_HEARTBEAT_INTERVAL=60
 
 # 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/venv"
 LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
 PLIST_PATH="$HOME/Library/LaunchAgents/com.keycult.monitor.plist"
 
 # 환경 변수

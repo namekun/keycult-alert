@@ -6,8 +6,9 @@ ReadMe는 mac 기반으로 작성하였습니다.
 ## 기능
 
 - Keycult No. 2/65 Raw (Stonewashed / Diagonal Unfinish) 모델의 재고 상태 모니터링
-- 재고 입고 시 이메일, Slack, Discord 알림 발송
-- 프로그램 생존 상태 확인을 위한 주기적 알림
+- DNS 해상도 실패 시 최대 3회 재시도 및 HTTP 요청 타임아웃(10초) 적용
+- 재고 입고 시 10회 반복 알림 전송 (이메일, Slack, Discord)
+- 프로그램 생존 상태 확인을 위한 주기적 알림 (설정 간격마다 정확히 전송)
 - 자세한 로그 기록
 - 사용자 설정 가능한 모니터링 간격
 - 안정적인 백그라운드 서비스 지원
@@ -92,11 +93,10 @@ launchctl list | grep keycult
 
 ## 로그 관리
 
-- 프로그램 실행 중 발생하는 모든 로그는 `logs` 디렉토리에 저장됩니다.
-- 로그 파일은 날짜와 시간이 포함된 이름으로 생성됩니다.
-- 서비스 실행 시의 로그는 다음 파일에서 확인할 수 있습니다:
-  - `logs/keycult_monitor_output.log`: 일반 출력 로그
-  - `logs/keycult_monitor_error.log`: 에러 로그
+- 모든 로그는 `logs` 디렉토리에 저장됩니다.
+- 로그 파일은 `TimedRotatingFileHandler`로 매일 회전되며, 파일명은 `keycult_monitor_YYYY-MM-DD.log` 형식입니다.
+- INFO 및 ERROR 레벨 로그가 하나의 통합 로그 파일에 기록되며, DNS 해상도 시도, HTTP 요청/응답, 재시도, 알림 전송 이벤트 등이 포함됩니다.
+- 필요 시 로깅 설정을 `config.sh`에서 조정할 수 있습니다.
 
 ## 설정 파일
 
