@@ -203,8 +203,7 @@ def check_stock():
                         f"Keycult No. 2/65 Raw {target_option} 옵션이 하루 동안 재고가 없었습니다.\n"
                         f"마지막 재고 확인: {last_stock_check_time.strftime('%Y-%m-%d %H:%M:%S')}"
                     )
-                    for _ in range(10):
-                        send_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
+                    send_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
                     last_stock_check_time = current_time
                     notification_sent = True
                 else:
