@@ -25,7 +25,7 @@ ReadMe는 mac 기반으로 작성하였습니다.
 1. 저장소를 클론합니다:
 ```bash
 git clone [repository-url]
-cd keycult-monitor
+cd keycult-alert
 ```
 
 2. 설치 스크립트를 실행합니다:
@@ -69,8 +69,8 @@ chmod +x install_service.sh
 ./install_service.sh
 ```
 
-서비스로 실행하면 컴퓨터를 시작할 때마다 자동으로 실행됩니다.
-- 기본 재고 확인 간격: 5분
+- 서비스로 실행하면 컴퓨터를 시작할 때마다 자동으로 실행됩니다.
+- 기본 재고 확인 간격: 1분
 - 기본 생존 알림 간격: 60분
 - 시간 간격을 변경하려면 `config.sh` 파일의 `DEFAULT_CHECK_INTERVAL`과 `DEFAULT_HEARTBEAT_INTERVAL` 값을 수정하세요.
 
@@ -108,7 +108,7 @@ launchctl list | grep keycult
 
 주요 설정값:
 ```bash
-DEFAULT_CHECK_INTERVAL=5      # 기본 재고 확인 간격 (분)
+DEFAULT_CHECK_INTERVAL=1      # 기본 재고 확인 간격 (분)
 DEFAULT_HEARTBEAT_INTERVAL=60 # 기본 생존 알림 간격 (분)
 ```
 
