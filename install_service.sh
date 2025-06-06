@@ -17,7 +17,6 @@ mkdir -p "$LOG_DIR"
 chmod +X "$SCRIPT_DIR"
 chmod +x "$SCRIPT_DIR/run_monitor.sh"
 chmod +x "$SCRIPT_DIR/uninstall_service.sh"
-chmod +x "$SCRIPT_DIR/run_service.sh"
 
 # 서비스 파일 생성
 log_info "서비스 설정 파일 생성 중..."
