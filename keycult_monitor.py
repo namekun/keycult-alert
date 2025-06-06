@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 import time
 import schedule
 from datetime import datetime, timedelta
@@ -152,6 +151,7 @@ def send_heartbeat(heartbeat_interval):
 def check_stock():
     global last_notification_time, last_stock_check_time
     url = "https://keycult.com/products/no-2-65-raw-1"
+    json_url = f"{url}.js"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -164,7 +164,7 @@ def check_stock():
             try:
                 hostname = url.split("//")[1].split("/")[0]
                 socket.gethostbyname(hostname)
-                response = requests.get(url, headers=headers, timeout=10)
+                response = requests.get(json_url, headers=headers, timeout=10)
                 response.raise_for_status()
                 break
             except socket.gaierror as e:
@@ -187,39 +187,39 @@ def check_stock():
                     return
         else:
             return
-        # At this point, `response` is successful
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 재고 여부 판별
-        out_of_stock = target_option in response.text and "Out of stock" in response.text
+        # At this point, `response` is successful and contains product JSON
+        product = response.json()
+        variants = product.get("variants", [])
+        variant = next((v for v in variants if v.get("title") == target_option), None)
+        if not variant:
+            logger.info(f"{target_option} 옵션이 페이지에 존재하지 않습니다.")
+            return
+
+        in_stock = bool(variant.get("available"))
         current_time = datetime.now()
-        
-        if target_option in response.text:
-            if out_of_stock:
-                # 하루 이상 재고 없으면 알림 전송
-                if (current_time - last_stock_check_time) >= timedelta(days=1):
-                    message = (
-                        f"Keycult No. 2/65 Raw {target_option} 옵션이 하루 동안 재고가 없었습니다.\n"
-                        f"마지막 재고 확인: {last_stock_check_time.strftime('%Y-%m-%d %H:%M:%S')}"
-                    )
-                    send_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
-                    last_stock_check_time = current_time
-                    notification_sent = True
-                else:
-                    logger.info(f"{target_option} 재고 없음 - 알림 전송 조건 미충족.")
-            else:
-                # 재고 입고 알림 전송
+
+        if in_stock:
+            # 재고 입고 알림 전송
+            message = (
+                f"Keycult No. 2/65 Raw {target_option} 옵션이 재고에 입고되었습니다!\n"
+                f"확인하러 가기: {url}"
+            )
+            for _ in range(10):
+                send_notification("Keycult No. 2/65 Raw Stonewashed 재고 입고 알림", message)
+            last_stock_check_time = current_time
+            notification_sent = True
+        else:
+            # 하루 이상 재고 없으면 알림 전송
+            if (current_time - last_stock_check_time) >= timedelta(days=1):
                 message = (
-                    f"Keycult No. 2/65 Raw {target_option} 옵션이 재고에 입고되었습니다!\n"
-                    f"확인하러 가기: {url}"
+                    f"Keycult No. 2/65 Raw {target_option} 옵션이 하루 동안 재고가 없었습니다.\n"
+                    f"마지막 재고 확인: {last_stock_check_time.strftime('%Y-%m-%d %H:%M:%S')}"
                 )
-                for _ in range(10):
-                    send_notification("Keycult No. 2/65 Raw Stonewashed 재고 입고 알림", message)
+                send_notification("Keycult No. 2/65 Raw Stonewashed 재고 부족 알림", message)
                 last_stock_check_time = current_time
                 notification_sent = True
-        else:
-            logger.info(f"{target_option} 옵션이 페이지에 존재하지 않습니다.")
+            else:
+                logger.info(f"{target_option} 재고 없음 - 알림 전송 조건 미충족.")
         
         # 알림 전송이 있었을 때만 마지막 알림 시간 업데이트
         if notification_sent:
