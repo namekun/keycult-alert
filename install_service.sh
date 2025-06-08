@@ -14,7 +14,7 @@ check_environment
 mkdir -p "$LOG_DIR"
 
 # 실행 권한 부여
-chmod +X "$SCRIPT_DIR"
+chmod +x "$SCRIPT_DIR"
 chmod +x "$SCRIPT_DIR/run_monitor.sh"
 chmod +x "$SCRIPT_DIR/uninstall_service.sh"
 
