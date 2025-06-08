@@ -70,9 +70,15 @@ chmod +x install_service.sh
 ```
 
 - 서비스로 실행하면 컴퓨터를 시작할 때마다 자동으로 실행됩니다.
+- 필요한 `~/Library/LaunchAgents` 폴더가 없으면 자동으로 생성합니다.
 - 기본 재고 확인 간격: 1분
 - 기본 생존 알림 간격: 60분
 - 시간 간격을 변경하려면 `config.sh` 파일의 `DEFAULT_CHECK_INTERVAL`과 `DEFAULT_HEARTBEAT_INTERVAL` 값을 수정하세요.
+
+### run_monitor.sh와 install_service.sh의 차이
+
+- `run_monitor.sh`: 즉시 모니터링을 시작하며, 실행 시 또는 명령줄 인자로 시간 간격을 지정할 수 있습니다. 로그 파일은 실행 시점의 타임스탬프를 포함한 이름으로 `logs` 폴더에 저장됩니다.
+- `install_service.sh`: macOS LaunchAgent 서비스를 생성하여 백그라운드에서 모니터링을 실행합니다. 기본 간격을 사용하며 컴퓨터를 재시작해도 자동으로 동작합니다.
 
 ## 서비스 관리
 

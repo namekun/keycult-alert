@@ -8,8 +8,11 @@ DEFAULT_HEARTBEAT_INTERVAL=60
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/venv"
 LOG_DIR="$SCRIPT_DIR/logs"
-mkdir -p "$LOG_DIR"
-PLIST_PATH="$HOME/Library/LaunchAgents/com.keycult.monitor.plist"
+PLIST_DIR="$HOME/Library/LaunchAgents"
+PLIST_PATH="$PLIST_DIR/com.keycult.monitor.plist"
+
+# Ensure required directories exist
+mkdir -p "$LOG_DIR" "$PLIST_DIR"
 
 # 환경 변수
 export PYTHONIOENCODING=utf-8
