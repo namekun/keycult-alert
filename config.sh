@@ -6,7 +6,7 @@ DEFAULT_HEARTBEAT_INTERVAL=60
 
 # 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="$SCRIPT_DIR/venv"
+VENV_DIR="$SCRIPT_DIR/.venv"
 LOG_DIR="$SCRIPT_DIR/logs"
 PLIST_DIR="$HOME/Library/LaunchAgents"
 PLIST_PATH="$PLIST_DIR/com.keycult.monitor.plist"
