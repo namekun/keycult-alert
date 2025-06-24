@@ -15,6 +15,8 @@ from logging.handlers import TimedRotatingFileHandler
 import asyncio
 import sys
 import socket
+import atexit
+import signal
 
 # 로그 디렉토리 설정 및 생성
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
@@ -40,9 +42,8 @@ def setup_logger():
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
-    console_handler.setStream(open(os.devnull, 'w', encoding='utf-8'))
     logger.addHandler(console_handler)
     
     return logger
@@ -69,6 +70,10 @@ DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
 # 전역 변수: 마지막 알림 및 재고 확인 시간
 last_notification_time = datetime.now()
 last_stock_check_time = datetime.now()
+
+# 키워드 모니터링 설정
+KEYWORDS = os.getenv('MONITOR_KEYWORDS', '').split(',')  # 쉼표로 구분된 키워드 목록
+KEYWORD_CHECK_INTERVAL = int(os.getenv('KEYWORD_CHECK_INTERVAL', '300'))  # 기본 5분
 
 # 공통 알림 전송 함수
 def send_notification(subject, message):
@@ -228,57 +233,97 @@ def check_stock():
     except Exception as e:
         logger.error(f"에러 발생: {str(e)}")
 
-def main():
-    global last_notification_time, last_stock_check_time
-    logger.info("Keycult 재고 모니터링 시작...")
-    enabled_notifications = []
-    if USE_EMAIL:
-        enabled_notifications.append("이메일")
-    if USE_SLACK:
-        enabled_notifications.append("Slack")
-    if USE_DISCORD:
-        enabled_notifications.append("Discord")
-    logger.info(f"활성화된 알림: {' '.join(enabled_notifications) if enabled_notifications else '없음'}")
-    
+def check_keywords():
+    """키워드 모니터링 함수"""
+    if not KEYWORDS:
+        return
+        
     try:
+        # 여기에 키워드 체크 로직 구현
+        # 예: 웹사이트 크롤링, API 호출 등
+        for keyword in KEYWORDS:
+            if keyword.strip():  # 빈 키워드 제외
+                # 키워드 발견 시 알림
+                message = f"키워드 '{keyword}' 발견!"
+                send_notification("키워드 알림", message)
+                logger.info(f"키워드 '{keyword}' 알림 발송")
+    except Exception as e:
+        logger.error(f"키워드 체크 중 오류 발생: {str(e)}")
+
+def log_exit(msg=None):
+    if msg:
+        logger.info(f"Keycult 모니터링 서비스 종료: {msg}")
+    else:
+        logger.info("Keycult 모니터링 서비스 종료")
+
+# atexit 등록
+atexit.register(log_exit)
+
+# 시그널 핸들러 등록
+def handle_signal(signum, frame):
+    log_exit(f"signal {signum} 수신")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_signal)
+signal.signal(signal.SIGINT, handle_signal)
+# macOS에서 SIGQUIT도 처리
+if hasattr(signal, 'SIGQUIT'):
+    signal.signal(signal.SIGQUIT, handle_signal)
+
+def main():
+    try:
+        logger.info("Keycult 모니터링 서비스 시작")
+        send_notification("Keycult 모니터링 서비스 시작", "Keycult 모니터링 서비스가 정상적으로 시작되었습니다.")
+
+        # 명령줄 인자/환경변수 처리
+        check_interval = None
+        heartbeat_interval = None
         if len(sys.argv) == 3:
-            check_interval = int(sys.argv[1])
-            heartbeat_interval = int(sys.argv[2])
-        else:
-            check_interval = int(input("재고 확인 간격(분): "))
-            heartbeat_interval = int(input("생존 알림 간격(분): "))
-        
-        if check_interval <= 0 or heartbeat_interval <= 0:
-            raise ValueError("시간 간격은 1분 이상이어야 합니다.")
-        
-        logger.info(f"재고 확인 간격: {check_interval}분")
-        logger.info(f"생존 알림 간격: {heartbeat_interval}분")
-        
-        # 초기 알림 발송
-        current_time = datetime.now()
-        initial_message = (
-            f"Keycult 모니터링 서비스가 시작되었습니다.\n"
-            f"재고 확인 간격: {check_interval}분\n"
-            f"생존 알림 간격: {heartbeat_interval}분\n"
-            f"시작 시간: {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        send_notification("Keycult 모니터링 서비스 시작 알림", initial_message)
-        logger.info("초기 알림 발송 완료.")
-        
-        # 스케줄러 등록
+            try:
+                check_interval = int(sys.argv[1])
+                heartbeat_interval = int(sys.argv[2])
+            except Exception:
+                logger.error("명령줄 인자 파싱 오류. 환경변수 또는 기본값 사용.")
+                check_interval = None
+                heartbeat_interval = None
+        if check_interval is None or heartbeat_interval is None:
+            # 환경변수 시도
+            try:
+                check_interval = int(os.getenv('CHECK_INTERVAL', ''))
+            except Exception:
+                check_interval = None
+            try:
+                heartbeat_interval = int(os.getenv('HEARTBEAT_INTERVAL', ''))
+            except Exception:
+                heartbeat_interval = None
+        if check_interval is None:
+            check_interval = 1  # 기본값: 1분
+        if heartbeat_interval is None:
+            heartbeat_interval = 30  # 기본값: 30분
+
+        logger.info(f"재고 확인 간격: {check_interval}분, 생존 알림 간격: {heartbeat_interval}시간")
+        send_notification("Keycult 모니터링 서비스 시작", f"재고 확인 간격: {check_interval}분, 생존 알림 간격: {heartbeat_interval}시간")
+
+        # 재고 체크는 인자 기반
         schedule.every(check_interval).minutes.do(check_stock)
-        schedule.every(heartbeat_interval).minutes.do(send_heartbeat, heartbeat_interval)
-        
+
+        # 키워드 모니터링 스케줄 추가
+        if KEYWORDS:
+            schedule.every(KEYWORD_CHECK_INTERVAL).seconds.do(check_keywords)
+
+        # 생존 알림도 입력받은 간격(분)마다 실행
+        schedule.every(heartbeat_interval).hours.do(lambda: send_heartbeat(heartbeat_interval))
+
         while True:
             schedule.run_pending()
             time.sleep(1)
-            
-    except ValueError as ve:
-        logger.error(f"입력 오류: {str(ve)}")
     except KeyboardInterrupt:
-        logger.info("프로그램을 종료합니다.")
+        log_exit("KeyboardInterrupt")
+        sys.exit(0)
     except Exception as e:
-        logger.error(f"예상치 못한 에러: {str(e)}")
+        logger.error(f"예외로 인한 서비스 종료: {e}")
+        log_exit(f"Exception: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

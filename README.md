@@ -49,10 +49,12 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 ```bash
 ./run_monitor.sh
 ```
-
 실행 시 다음 정보를 입력하라는 메시지가 표시됩니다:
-1. 재고 확인 간격 (분 단위)
-2. 생존 알림 간격 (분 단위)
+1. 재고 확인 간격 (분 단위, 예: 1)
+2. 생존 알림 간격 (시간 단위, 예: 1)
+
+- **재고 확인**: 입력한 간격(분)마다 실행됩니다.
+- **생존 알림**: 입력한 간격(시간)마다 주기적으로 울리며, 메시지에 입력한 생존 알림 간격이 함께 표시됩니다.
 
 ### 직접 시간 간격 지정 실행
 ```bash
@@ -60,7 +62,7 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 ```
 예시:
 ```bash
-./run_monitor.sh 10 15  # 재고 확인 10분, 생존 알림 15분
+./run_monitor.sh 1 2  # 재고 확인 1분, 생존 알림 2시간마다
 ```
 
 ### 서비스로 실행
@@ -68,11 +70,9 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 chmod +x install_service.sh
 ./install_service.sh
 ```
-
 - 서비스로 실행하면 컴퓨터를 시작할 때마다 자동으로 실행됩니다.
-- 필요한 `~/Library/LaunchAgents` 폴더가 없으면 자동으로 생성합니다.
 - 기본 재고 확인 간격: 1분
-- 기본 생존 알림 간격: 60분
+- 기본 생존 알림 간격: 1시간
 - 시간 간격을 변경하려면 `config.sh` 파일의 `DEFAULT_CHECK_INTERVAL`과 `DEFAULT_HEARTBEAT_INTERVAL` 값을 수정하세요.
 
 ### run_monitor.sh와 install_service.sh의 차이
@@ -115,7 +115,7 @@ launchctl list | grep keycult
 주요 설정값:
 ```bash
 DEFAULT_CHECK_INTERVAL=1      # 기본 재고 확인 간격 (분)
-DEFAULT_HEARTBEAT_INTERVAL=60 # 기본 생존 알림 간격 (분)
+DEFAULT_HEARTBEAT_INTERVAL=12 # 기본 생존 알림 간격 (시간)
 ```
 
 ## 주의사항
@@ -126,3 +126,51 @@ DEFAULT_HEARTBEAT_INTERVAL=60 # 기본 생존 알림 간격 (분)
 - 서비스 설치 전에 `.env` 파일이 올바르게 설정되어 있어야 합니다.
 - 서비스 설치 스크립트는 현재 디렉토리에서 실행해야 합니다.
 - macOS의 보안 정책으로 인해 서비스 실행 시 가상환경 접근이 제한될 수 있습니다. 
+
+## 최근 변경 및 주요 안내
+
+### 2024-06 업데이트
+
+- **Docker 지원**: Dockerfile, docker-compose.yml 추가. 컨테이너에서 바로 실행 가능
+- **시간대 자동 설정**: 컨테이너에서 한국 시간(Asia/Seoul)으로 로그 및 시간 동작
+- **환경변수 기반 설정**: CHECK_INTERVAL, HEARTBEAT_INTERVAL을 .env 또는 docker 환경변수로 지정 가능
+- **서비스 시작 알림**: 서비스가 시작될 때 알림(이메일/슬랙/디스코드) 자동 전송
+- **로그 실시간 확인**: docker compose logs -f keycult-monitor 등으로 실시간 로그 확인 가능
+- **stdout 로그 출력**: 모든 로그가 파일과 동시에 콘솔에도 출력되어 도커 로그에서 바로 확인 가능
+
+---
+
+## Docker로 실행하기
+
+### 1. 이미지 빌드 및 실행
+```bash
+docker compose build
+docker compose up -d
+```
+
+### 2. 환경변수(.env) 예시
+```
+CHECK_INTERVAL=1
+HEARTBEAT_INTERVAL=60
+EMAIL_ADDRESS=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+RECEIVER_EMAIL=receiver@example.com
+SLACK_WEBHOOK_URL=your-slack-webhook-url
+DISCORD_WEBHOOK_URL=your-discord-webhook-url
+```
+
+### 3. 로그 확인
+```bash
+docker compose logs -f keycult-monitor
+```
+
+### 4. 시간대 문제 해결
+- 컨테이너는 자동으로 Asia/Seoul(한국) 시간대가 적용됩니다.
+- 로그 및 알림의 시간이 한국 기준으로 표시됩니다.
+
+### 5. 컨테이너 이름 지정 실행 예시
+```bash
+docker run --name keycult-monitor --env-file .env -v $(pwd)/logs:/app/logs keycult-monitor
+```
+
+---
